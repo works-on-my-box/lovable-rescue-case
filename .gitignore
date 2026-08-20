@@ -1,0 +1,7 @@
+node_modules/
+dist/
+scripts/out/
+*.webm
+.DS_Store
+# NOTE: before/.env is committed ON PURPOSE (fake values) to show the "secrets in git" mistake.
+# after/.gitignore ignores real .env files.
