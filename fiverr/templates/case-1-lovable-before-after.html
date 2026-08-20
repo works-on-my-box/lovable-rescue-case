@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Lovable app → production in 48h</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:769px;overflow:hidden}
+body{font-family:'Ubuntu Sans','Ubuntu','Segoe UI',system-ui,sans-serif;color:#0f172a;background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 100%);padding:38px 44px;display:flex;flex-direction:column;gap:22px}
+code{font-family:'Ubuntu Mono','DejaVu Sans Mono',monospace;font-size:.92em;background:#f1f5f9;padding:1px 6px;border-radius:6px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+h1{font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.sub{font-size:21px;color:#475569;margin-top:10px;max-width:900px;line-height:1.35}
+.pill{flex:none;margin-top:6px;background:#0f172a;color:#fff;font-weight:700;font-size:16px;padding:10px 18px;border-radius:999px;letter-spacing:.01em}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;min-height:0}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:22px 26px;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(15,23,42,.06)}
+.card.before{border-top:6px solid #dc2626}.card.after{border-top:6px solid #16a34a}
+.ch{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.badge{font-size:15px;font-weight:800;letter-spacing:.12em;padding:6px 14px;border-radius:999px;color:#fff}
+.before .badge{background:#dc2626}.after .badge{background:#16a34a}
+.ch span.l{font-size:17px;color:#64748b}
+ul{list-style:none;display:flex;flex-direction:column;gap:11px}
+li{display:flex;align-items:flex-start;gap:12px;font-size:20.5px;line-height:1.3;font-weight:500}
+.ic{flex:none;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin-top:-1px}
+.ic.no{background:#fee2e2;color:#dc2626}.ic.ok{background:#dcfce7;color:#16a34a}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.m{background:#0f172a;color:#fff;border-radius:14px;padding:14px 20px}
+.ml{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;font-weight:700}
+.mv{display:flex;align-items:center;gap:12px;font-size:26px;font-weight:800;margin-top:4px}
+.from{color:#fca5a5;text-decoration:line-through;text-decoration-thickness:3px}.arr{color:#64748b}.to{color:#86efac}
+.foot{flex:none;display:flex;justify-content:space-between;font-size:15px;color:#64748b}
+</style></head><body>
+<div class="head"><div><h1>Lovable app → production in 48h</h1><p class="sub">A vibe-coded React + Supabase task tracker that would not build or deploy — fixed, tested, deploy-ready.</p></div><div class="pill">48h · fixed price · async</div></div>
+<div class="cols">
+  <div class="card before"><div class="ch"><span class="badge">BEFORE</span><span class="l">as handed over by the AI builder</span></div><ul><li><span class="ic no">✕</span><span><code>npm run build</code> fails — 4 TypeScript errors</span></li><li><span class="ic no">✕</span><span>Supabase URL + keys hardcoded, <code>.env</code> committed to git</span></li><li><span class="ic no">✕</span><span>Login loop: sign in → straight back to /login</span></li><li><span class="ic no">✕</span><span><code>/tasks/:id</code> opens without signing in</span></li><li><span class="ic no">✕</span><span>404 on refresh of any deep link (no rewrites)</span></li><li><span class="ic no">✕</span><span>White screen on API errors — no error boundary</span></li></ul></div>
+  <div class="card after"><div class="ch"><span class="badge">AFTER</span><span class="l">production-ready, with a written handover</span></div><ul><li><span class="ic ok">✓</span><span>Build green + CI (GitHub Actions: build + tests)</span></li><li><span class="ic ok">✓</span><span>Secrets in env vars, <code>.env.example</code>, <code>.gitignore</code></span></li><li><span class="ic ok">✓</span><span>Auth waits for the session; redirect back after login</span></li><li><span class="ic ok">✓</span><span>Every app route behind one protected layout</span></li><li><span class="ic ok">✓</span><span><code>vercel.json</code> + <code>netlify.toml</code> SPA rewrites</span></li><li><span class="ic ok">✓</span><span>Error boundary + readable error messages</span></li></ul></div>
+</div>
+<div class="metrics"><div class="m"><div class="ml">Build</div><div class="mv"><span class="from">failing</span><span class="arr">→</span><span class="to">passing</span></div></div><div class="m"><div class="ml">Secrets</div><div class="mv"><span class="from">in repo</span><span class="arr">→</span><span class="to">env vars</span></div></div><div class="m"><div class="ml">Deep-link refresh</div><div class="mv"><span class="from">404</span><span class="arr">→</span><span class="to">200</span></div></div></div>
+<div class="foot"><span>Demo case: TaskFlow — a Lovable-style React + Supabase app (code on GitHub, before/ and after/)</span><span>Lovable · Bolt · v0 · Cursor · Replit + Supabase</span></div>
+</body></html>
