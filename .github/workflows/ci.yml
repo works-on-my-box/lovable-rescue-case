@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  after:
+    name: after/ — build + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: after
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: after/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  before:
+    name: before/ — build is expected to fail
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: before
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: before/package-lock.json
+      - run: npm ci
+      - name: Confirm the handed-over app still does not build
+        run: |
+          if npm run build; then
+            echo "::error::before/ unexpectedly builds — the case study is out of date"; exit 1
+          else
+            echo "before/ fails to build, as documented"
+          fi
