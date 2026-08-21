@@ -92,6 +92,6 @@ fiverr/     two 1280×769 portfolio images + their HTML templates
 
 Send the repo (or a Lovable / Bolt / v0 / Replit share link) and the symptoms in a sentence or two. You get a written plan and a fixed price within a day; small fixes ship in 24–72 h, everything in writing with a short screen recording — no calls needed.
 
-Built by {founder name} — {Upwork profile} · {Fiverr profile} · {email}
+Built by Oleg Naryzhnykh — [Upwork](https://www.upwork.com/freelancers/~01c66d93b36ab6342b) · [Fiverr](https://www.fiverr.com/sellerdesk).
 
 License: MIT.
