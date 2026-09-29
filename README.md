@@ -84,6 +84,7 @@ NODE_PATH=$(npm root -g) node scripts/render-fiverr.mjs
 before/     the app as handed over (Vite + React + TS + supabase-js 2.49, fake keys, committed .env)
 after/      the fixed app: backend adapter (demo mode / Supabase), tests, vercel.json, netlify.toml, schema, edge function
 scripts/    serve-static.mjs (host simulator), record-demo.mjs (GIFs), render-fiverr.mjs (portfolio images)
+rls-audit/  Row Level Security: the policies AI builders generate, a one-query audit, psql probes, the fix, a 200k-row index measurement
 fiverr/     two 1280×769 portfolio images + their HTML templates
 .github/    CI: after/ must build and pass tests; before/ must still fail to build
 ```

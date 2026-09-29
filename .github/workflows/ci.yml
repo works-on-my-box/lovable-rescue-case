@@ -43,3 +43,26 @@ jobs:
           else
             echo "before/ fails to build, as documented"
           fi
+
+  rls-audit:
+    name: rls-audit/ — policies, probes and fix run on PostgreSQL 16
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: pg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the demo end to end
+        run: ./rls-audit/run.sh --with-index
+      - name: Confirm the generated policies leak and the fixed ones do not
+        run: |
+          out=$(./rls-audit/run.sh)
+          echo "$out" | grep -q 'new row violates row-level security policy for table "project_members"'
+          echo "$out" | grep -q 'permission denied for table profiles'
+          echo "$out" | grep -c 'reads every row' | grep -qx 5
