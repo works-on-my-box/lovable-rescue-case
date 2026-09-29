@@ -28,4 +28,6 @@ echo; echo '##### 03-audit.sql again, after 05-fix.sql'; psql "$db" -f 03-audit.
 echo; echo '##### 06-test-after-fix.sql: the same probes, errors expected'; psql "$db" -f 06-test-after-fix.sql
 if [ "${1:-}" = "--with-index" ]; then
   echo; echo '##### 07-index.sql: 200,000 tasks, three policy shapes, two indexes'; psql "$db" -f 07-index.sql
+else
+  psql "$db" -q -v ON_ERROR_STOP=1 -f 08-indexes.sql
 fi

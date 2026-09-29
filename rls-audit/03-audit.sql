@@ -1,6 +1,7 @@
 -- One pass over every table in the public schema: is RLS on, what policies exist,
 -- and what is wrong with each of them. Read the "findings" column first.
--- Works on any PostgreSQL from 9.5 up; nothing here is Supabase-specific.
+-- Works on any PostgreSQL from 9.5 up. The last two findings assume Supabase's role and
+-- function names (anon, auth.uid()); edit them for another setup.
 with t as (
   select c.oid, c.relname as tbl, c.relrowsecurity as rls_on
   from pg_class c

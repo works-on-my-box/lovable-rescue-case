@@ -103,9 +103,8 @@ show jit_above_cost;
 reset role;
 
 \echo
-\echo '=== the two indexes, with shape B in place'
-create index tasks_project_id_created_at_idx on public.tasks (project_id, created_at desc);
-create index project_members_user_id_idx on public.project_members (user_id, project_id);
+\echo '=== the two indexes (08-indexes.sql), with shape B in place'
+\ir 08-indexes.sql
 analyze public.tasks, public.project_members;
 set role authenticated; select set_config('request.jwt.claims', :me, false);
 explain (analyze, buffers, costs off) select count(*) from public.tasks;
@@ -166,4 +165,4 @@ drop index public.project_members_user_id_idx;
 set role authenticated;
 explain (analyze, costs off) select count(*) from public.tasks;
 reset role;
-create index project_members_user_id_idx on public.project_members (user_id, project_id);
+\ir 08-indexes.sql

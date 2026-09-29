@@ -15,7 +15,8 @@ no browser.
 | `04-test-as-user.sql` | `set role` + `request.jwt.claims`, the way PostgREST hits the database: what an anonymous key and a signed-in user can read and write |
 | `05-fix.sql` | the same tables with policies that name the role, decide by membership and carry `WITH CHECK` |
 | `06-test-after-fix.sql` | the same probes; the errors are the point |
-| `07-index.sql` | 200,000 tasks: three shapes of the membership policy, the two indexes that matter, and the JIT trap |
+| `07-index.sql` | 200,000 tasks: three shapes of the membership policy, the JIT trap, `LIKE` and leakproof ordering, `auth.uid()` bare vs wrapped, the membership index |
+| `08-indexes.sql` | the two indexes the fixed policies need; the migration to ship with `05-fix.sql` |
 
 ## Run it
 
