@@ -1,7 +1,8 @@
--- What the fixed policies cost at 200,000 tasks, and which index makes the difference.
--- Run after 05-fix.sql. Everything is measured as an ordinary signed-in user who is a
--- member of 5 of the 500 projects, with EXPLAIN (ANALYZE, BUFFERS) on the two queries
--- the app actually runs: the dashboard count and one page of a project's tasks.
+-- What the fixed policies cost at 200,000 tasks, which shape of the membership check to
+-- write, and which indexes matter. Run after 05-fix.sql. Everything is measured as an
+-- ordinary signed-in user who is a member of 5 of the 500 projects, with
+-- EXPLAIN (ANALYZE, BUFFERS) on the two queries the app runs most: the dashboard count
+-- and one page of a project's tasks.
 
 \echo '=== seeding: 2,000 users, 500 projects, ~4 members each, 200,000 tasks'
 select setseed(0.42);
@@ -39,7 +40,7 @@ select (select count(*) from public.tasks) as tasks,
        (select count(*) from public.project_members
         where user_id = '00000000-0000-0000-0001-000000000001') as my_projects;
 
--- helper used by variant A below: one membership lookup per candidate row
+-- helper for shape A below: one membership lookup per candidate row
 create or replace function public.is_project_member(p_project uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.project_members m
@@ -51,22 +52,12 @@ grant  execute on function public.is_project_member(uuid) to authenticated;
 \set me '''{"sub": "00000000-0000-0000-0001-000000000001", "role": "authenticated"}'''
 \set page '''00000000-0000-0000-0002-000000000003'''
 
--- A trap that hides behind policies with subqueries: the planner prices the policy's subplan
--- as if it ran once per row, the estimate crosses jit_above_cost (100000 by default), and the
--- query gets JIT-compiled on every execution. Compile time dwarfs the query. Shown once, then
--- switched off for the measurements so we measure the policies, not the compiler.
-\echo
-\echo '=== JIT: the fixed policy, count(*) with jit on (default) and off'
-set role authenticated; select set_config('request.jwt.claims', :me, false);
-explain (analyze, costs on, buffers off) select count(*) from public.tasks;
-set jit = off;
-explain (analyze, costs on, buffers off) select count(*) from public.tasks;
-reset role;
+-- JIT is switched off for the measurements so that we measure the policies, not the
+-- compiler; the section on shape C shows what happens with it on.
 set jit = off;
 
--- Variant A: a SECURITY DEFINER function called for every candidate row.
 \echo
-\echo '=== A. using (public.is_project_member(project_id)) -- one lookup per row'
+\echo '=== A. using (public.is_project_member(project_id)) -- a function call per row'
 drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (public.is_project_member(project_id));
@@ -76,9 +67,8 @@ explain (analyze, buffers, costs off)
   select * from public.tasks where project_id = :page order by created_at desc limit 10;
 reset role;
 
--- Variant B: one subquery, evaluated once, hashed; cannot use an index on tasks.
 \echo
-\echo '=== B. using (project_id in (select public.my_project_ids())) -- hashed subplan'
+\echo '=== B. using (project_id in (select public.my_project_ids())) -- what 05-fix.sql installs'
 drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (project_id in (select public.my_project_ids()));
@@ -88,9 +78,8 @@ explain (analyze, buffers, costs off)
   select * from public.tasks where project_id = :page order by created_at desc limit 10;
 reset role;
 
--- Variant C: correlated EXISTS against project_members (what 05-fix.sql installs).
 \echo
-\echo '=== C. using (exists (select 1 from project_members m where ...)) -- joinable'
+\echo '=== C. using (exists (select 1 from project_members m where ...)) -- correlated EXISTS'
 drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (exists (select 1 from public.project_members m
@@ -99,10 +88,22 @@ set role authenticated; select set_config('request.jwt.claims', :me, false);
 explain (analyze, buffers, costs off) select count(*) from public.tasks;
 explain (analyze, buffers, costs off)
   select * from public.tasks where project_id = :page order by created_at desc limit 10;
+\echo '--- C with the default jit = on: the cost estimate crosses jit_above_cost'
+set jit = on;
+explain (analyze, costs on, buffers off) select count(*) from public.tasks;
+set jit = off;
+\echo '--- for comparison, the cost estimates of A and B never reach the threshold'
+reset role;
+drop policy "tasks: members read" on public.tasks;
+create policy "tasks: members read" on public.tasks for select to authenticated
+  using (project_id in (select public.my_project_ids()));
+set role authenticated;
+explain (costs on) select count(*) from public.tasks;
+show jit_above_cost;
 reset role;
 
 \echo
-\echo '=== C + indexes on the policy columns'
+\echo '=== the two indexes, with shape B in place'
 create index tasks_project_id_created_at_idx on public.tasks (project_id, created_at desc);
 create index project_members_user_id_idx on public.project_members (user_id, project_id);
 analyze public.tasks, public.project_members;
@@ -113,41 +114,56 @@ explain (analyze, buffers, costs off)
 reset role;
 
 \echo
-\echo '=== A and B again, now that the indexes exist'
+\echo '=== LIKE is not leakproof: the policy runs first. Shape A vs shape B on a title search'
 drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (public.is_project_member(project_id));
 set role authenticated; select set_config('request.jwt.claims', :me, false);
-explain (analyze, buffers, costs off) select count(*) from public.tasks;
-explain (analyze, buffers, costs off)
-  select * from public.tasks where project_id = :page order by created_at desc limit 10;
+explain (analyze, costs off) select count(*) from public.tasks where title like '%Task 1234%';
 reset role;
 drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (project_id in (select public.my_project_ids()));
-set role authenticated; select set_config('request.jwt.claims', :me, false);
-explain (analyze, buffers, costs off) select count(*) from public.tasks;
-explain (analyze, buffers, costs off)
-  select * from public.tasks where project_id = :page order by created_at desc limit 10;
+set role authenticated;
+explain (analyze, costs off) select count(*) from public.tasks where title like '%Task 1234%';
 reset role;
-
--- leave the database in the state 05-fix.sql describes
-drop policy "tasks: members read" on public.tasks;
-create policy "tasks: members read" on public.tasks for select to authenticated
-  using (exists (select 1 from public.project_members m
-                 where m.project_id = tasks.project_id and m.user_id = (select auth.uid())));
 
 \echo
-\echo '=== bonus: auth.uid() per row vs (select auth.uid()) once, on the delete policy shape'
-drop policy "tasks: author deletes" on public.tasks;
-create policy "tasks: author deletes" on public.tasks for delete to authenticated
+\echo '=== auth.uid() bare vs (select auth.uid()), in the policy itself (the generated "own rows" shape)'
+drop policy "tasks: members read" on public.tasks;
+create policy "tasks: members read" on public.tasks for select to authenticated
   using (created_by = auth.uid());
 set role authenticated; select set_config('request.jwt.claims', :me, false);
-\echo '--- created_by = auth.uid()'
-explain (analyze, buffers, costs off) select count(*) from public.tasks where created_by = auth.uid();
-\echo '--- created_by = (select auth.uid())'
-explain (analyze, buffers, costs off) select count(*) from public.tasks where created_by = (select auth.uid());
+\echo '--- using (created_by = auth.uid())'
+explain (analyze, costs off) select count(*) from public.tasks;
 reset role;
-drop policy "tasks: author deletes" on public.tasks;
-create policy "tasks: author deletes" on public.tasks for delete to authenticated
+drop policy "tasks: members read" on public.tasks;
+create policy "tasks: members read" on public.tasks for select to authenticated
   using (created_by = (select auth.uid()));
+set role authenticated;
+\echo '--- using (created_by = (select auth.uid()))'
+explain (analyze, costs off) select count(*) from public.tasks;
+reset role;
+-- back to the shape 05-fix.sql installs
+drop policy "tasks: members read" on public.tasks;
+create policy "tasks: members read" on public.tasks for select to authenticated
+  using (project_id in (select public.my_project_ids()));
+
+\echo
+\echo '=== the membership table at ~250,000 rows: the helper with and without its index'
+insert into public.project_members (project_id, user_id, role)
+select ('00000000-0000-0000-0002-' || lpad((1 + floor(random() * 500))::int::text, 12, '0'))::uuid,
+       ('00000000-0000-0000-0001-' || lpad((1 + floor(random() * 2000))::int::text, 12, '0'))::uuid,
+       'member'
+from generate_series(1, 300000) g
+on conflict do nothing;
+analyze public.project_members;
+select count(*) as memberships from public.project_members;
+set role authenticated; select set_config('request.jwt.claims', :me, false);
+explain (analyze, costs off) select count(*) from public.tasks;
+reset role;
+drop index public.project_members_user_id_idx;
+set role authenticated;
+explain (analyze, costs off) select count(*) from public.tasks;
+reset role;
+create index project_members_user_id_idx on public.project_members (user_id, project_id);

@@ -7,13 +7,22 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 url="${DATABASE_URL:-postgres://postgres:pg@127.0.0.1:5432/postgres}"
-psql "$url" -q -c 'drop database if exists rls_audit' -c 'create database rls_audit'
 db="${url%/*}/rls_audit"
-for f in 00-supabase-shim.sql 01-schema-as-generated.sql 02-seed.sql; do
-  psql "$db" -q -v ON_ERROR_STOP=1 -f "$f"
-done
+
+fresh() {   # a new database with the shim, the generated schema and the seed
+  psql "$url" -q -c 'drop database if exists rls_audit' -c 'create database rls_audit'
+  for f in 00-supabase-shim.sql 01-schema-as-generated.sql 02-seed.sql; do
+    psql "$db" -q -v ON_ERROR_STOP=1 -f "$f"
+  done
+}
+
+fresh
 echo; echo '##### 03-audit.sql: the generated policies'; psql "$db" -f 03-audit.sql
 echo; echo '##### 04-test-as-user.sql: what carol can do'; psql "$db" -f 04-test-as-user.sql
+
+# Carol's probes above changed the data (she made herself an owner and an admin).
+# The fix is tested on a fresh seed, so that what it shows is the policies, not her leftovers.
+fresh
 psql "$db" -q -v ON_ERROR_STOP=1 -f 05-fix.sql
 echo; echo '##### 03-audit.sql again, after 05-fix.sql'; psql "$db" -f 03-audit.sql
 echo; echo '##### 06-test-after-fix.sql: the same probes, errors expected'; psql "$db" -f 06-test-after-fix.sql

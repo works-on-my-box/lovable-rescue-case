@@ -64,6 +64,12 @@ jobs:
           ./rls-audit/run.sh --with-index 2>&1 | tee run.out
       - name: Confirm the generated policies leak and the fixed ones do not
         run: |
+          # before the fix: carol updates alice's task and plants herself as an owner and an admin
+          grep -c '^UPDATE 1' run.out | grep -qx 3
+          grep -q '^INSERT 0 1' run.out
+          grep -c 'reads every row' run.out | grep -qx 5
+          # after the fix: the same update touches nothing, the writes are refused, the audit is clean
+          grep -q '^UPDATE 0' run.out
           grep -q 'new row violates row-level security policy for table "project_members"' run.out
           grep -q 'permission denied for table profiles' run.out
           grep -c 'reads every row' run.out | grep -qx 5

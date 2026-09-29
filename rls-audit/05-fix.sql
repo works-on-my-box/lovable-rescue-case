@@ -63,12 +63,11 @@ create policy "members: owner adds" on public.project_members
   with check (exists (select 1 from public.projects p
                       where p.id = project_id and p.owner_id = (select auth.uid())));
 
--- tasks: membership decides. The EXISTS form joins to project_members, which the planner
--- can turn into an index lookup; see 07-index.sql for what that is worth.
+-- tasks: membership decides. The helper runs once per query and its result is hashed;
+-- 07-index.sql measures this shape against a per-row function and a correlated EXISTS.
 create policy "tasks: members read" on public.tasks
   for select to authenticated
-  using (exists (select 1 from public.project_members m
-                 where m.project_id = tasks.project_id and m.user_id = (select auth.uid())));
+  using (project_id in (select public.my_project_ids()));
 create policy "tasks: members insert as themselves" on public.tasks
   for insert to authenticated
   with check (created_by = (select auth.uid())
