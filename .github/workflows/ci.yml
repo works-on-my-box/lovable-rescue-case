@@ -59,10 +59,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run the demo end to end
-        run: ./rls-audit/run.sh --with-index
+        run: |
+          set -o pipefail
+          ./rls-audit/run.sh --with-index 2>&1 | tee run.out
       - name: Confirm the generated policies leak and the fixed ones do not
         run: |
-          out=$(./rls-audit/run.sh)
-          echo "$out" | grep -q 'new row violates row-level security policy for table "project_members"'
-          echo "$out" | grep -q 'permission denied for table profiles'
-          echo "$out" | grep -c 'reads every row' | grep -qx 5
+          grep -q 'new row violates row-level security policy for table "project_members"' run.out
+          grep -q 'permission denied for table profiles' run.out
+          grep -c 'reads every row' run.out | grep -qx 5
