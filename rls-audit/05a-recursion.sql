@@ -1,6 +1,7 @@
 -- The obvious membership policy: "you see the membership rows of your own projects", written
 -- as a subquery on project_members inside a policy on project_members. PostgreSQL refuses to
 -- run it. Shown for the record and rolled back; 05-fix.sql does the same lookup in a function.
+-- CREATE POLICY itself succeeds; the error comes with the first query the policy applies to.
 
 begin;
 create policy "members: read own projects" on public.project_members
@@ -10,5 +11,5 @@ create policy "members: read own projects" on public.project_members
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub": "00000000-0000-0000-0000-000000000003", "role": "authenticated"}', true);
-select * from public.project_members;
+select * from public.project_members;   -- as a signed-in user
 rollback;

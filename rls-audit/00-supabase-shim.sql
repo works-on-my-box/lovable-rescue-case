@@ -20,9 +20,15 @@ create schema if not exists auth;
 
 -- Supabase puts the claims of the request's JWT into the request.jwt.claims setting.
 -- auth.uid() reads the "sub" claim out of it. That is the only thing the policies need.
+-- The body is the one Supabase ships (supabase/auth, migration 20220224000811), so the
+-- plans and timings in 07-index.sql are for the same expression.
 create or replace function auth.uid() returns uuid
 language sql stable as $$
-  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
+  select
+  coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+  )::uuid
 $$;
 
 -- Stand-in for auth.users, which profiles references.

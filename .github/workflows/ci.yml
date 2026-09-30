@@ -68,13 +68,33 @@ jobs:
           grep -c '^UPDATE 1' run.out | grep -qx 3
           grep -q '^INSERT 0 1' run.out
           grep -c 'reads every row' run.out | grep -qx 5
+          # the fix on top of her rows does not take them back: they show up in the review query
+          grep -qx ' Alpha   | Carol  | owner' run.out
           # the obvious members policy recurses, which is why the fix goes through a function
           grep -q 'infinite recursion detected in policy for relation "project_members"' run.out
           # after the fix: anon has no table privileges, the same update touches nothing,
           # the writes are refused, the audit is clean
-          grep -q '^UPDATE 0' run.out
-          grep -q 'new row violates row-level security policy for table "project_members"' run.out
           grep -c 'permission denied for table profiles' run.out | grep -qx 2
           grep -c 'reads every row' run.out | grep -qx 5
-          # and the app still works: a signed-in user creates a project and sees it
+          grep -c 'WITH CHECK (true)' run.out | grep -qx 3
+          # a probe with WHERE or RETURNING is stopped by the SELECT policy, so the write policies
+          # are also tried bare: the update touches her own two rows, the insert is refused twice
+          grep -qx 'UPDATE 2' run.out
+          grep -q 'new row violates row-level security policy for table "comments"' run.out
+          grep -qx ' carol reads 1 profile(s)' run.out
+          grep -qx ' carol reads 1 project(s), 1 membership row(s), 2 comment(s)' run.out
+          # a member cannot rewrite created_by or project_id on a teammate's task, cannot TRUNCATE,
+          # and keeps no delete rights in a project he was taken off
+          grep -c 'permission denied for table tasks' run.out | grep -qx 2
+          grep -q 'permission denied for table comments' run.out
+          # one probe for each of the other policies: every one of them refuses or touches no row
+          # (three of the refusals on project_members, two of the three on projects, are after the fix)
+          grep -c '^UPDATE 0' run.out | grep -qx 3
+          grep -c '^DELETE 0' run.out | grep -qx 3
+          grep -c 'new row violates row-level security policy for table "tasks"' run.out | grep -qx 1
+          grep -c 'new row violates row-level security policy for table "project_members"' run.out | grep -qx 3
+          grep -c 'new row violates row-level security policy for table "projects"' run.out | grep -qx 3
+          # and the app still works: a signed-in user creates a project, adds himself as its
+          # first member with RETURNING, and sees it
           grep -qx ' Beta' run.out
+          grep -qx ' owner' run.out

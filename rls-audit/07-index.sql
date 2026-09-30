@@ -2,7 +2,7 @@
 -- write, and which indexes matter. Run after 05-fix.sql. Everything is measured as an
 -- ordinary signed-in user who is a member of 5 of the 500 projects, with
 -- EXPLAIN (ANALYZE, BUFFERS) on the two queries the app runs most: the dashboard count
--- and one page of a project's tasks.
+-- and one page of a project's tasks. The last section does the same for one task's comments.
 
 \echo '=== server'
 select version();
@@ -73,7 +73,7 @@ explain (analyze, buffers, costs off)
 reset role;
 
 \echo
-\echo '=== B. using (project_id in (select private.my_project_ids())) -- what 05-fix.sql installs'
+\echo '=== B. using (project_id in (select private.my_project_ids())) -- what 05-fix.sql installs on tasks'
 drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (project_id in (select private.my_project_ids()));
@@ -93,7 +93,7 @@ set role authenticated; select set_config('request.jwt.claims', :me, false);
 explain (analyze, buffers, costs off) select count(*) from public.tasks;
 explain (analyze, buffers, costs off)
   select * from public.tasks where project_id = :page order by created_at desc limit 10;
-\echo '--- C with the default jit = on: the cost estimate crosses jit_above_cost'
+\echo '--- C with jit = on (the default up to PostgreSQL 18): the cost estimate crosses jit_above_cost'
 set jit = on;
 explain (analyze, costs on, buffers off) select count(*) from public.tasks;
 set jit = off;
@@ -102,7 +102,7 @@ drop policy "tasks: members read" on public.tasks;
 create policy "tasks: members read" on public.tasks for select to authenticated
   using (project_id in (select private.my_project_ids()));
 set role authenticated; select set_config('request.jwt.claims', :me, false);
-\echo '--- B with the default jit = on: the estimate stays under jit_above_cost, nothing is compiled'
+\echo '--- B with jit = on: the estimate stays under jit_above_cost, nothing is compiled'
 set jit = on;
 explain (analyze, costs on, buffers off) select count(*) from public.tasks;
 show jit_above_cost;
@@ -110,7 +110,7 @@ set jit = off;
 reset role;
 
 \echo
-\echo '=== the two indexes (08-indexes.sql), with shape B in place'
+\echo '=== the indexes (08-indexes.sql), with shape B in place'
 \ir 08-indexes.sql
 analyze public.tasks, public.project_members;
 set role authenticated; select set_config('request.jwt.claims', :me, false);
@@ -173,3 +173,19 @@ set role authenticated;
 explain (analyze, costs off) select count(*) from public.tasks;
 reset role;
 \ir 08-indexes.sql
+
+\echo
+\echo '=== comments: the policy is an EXISTS on tasks. One task''s comments without and with comments_task_id_idx'
+insert into public.comments (task_id, author_id, body)
+select t.id, t.created_by, 'Comment on ' || t.title
+from public.tasks t where t.project_id::text like '00000000-0000-0000-0002-%';
+analyze public.comments;
+select id as task from public.tasks where project_id = :page order by created_at desc limit 1 \gset
+drop index public.comments_task_id_idx;
+set role authenticated; select set_config('request.jwt.claims', :me, false);
+explain (analyze, costs off) select * from public.comments where task_id = :'task';
+reset role;
+\ir 08-indexes.sql
+set role authenticated;
+explain (analyze, costs off) select * from public.comments where task_id = :'task';
+reset role;

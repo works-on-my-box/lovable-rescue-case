@@ -2,6 +2,9 @@
 -- and what is wrong with each of them. Read the "findings" column first.
 -- Works on any PostgreSQL from 9.5 up. The last two findings assume Supabase's role and
 -- function names (anon, auth.uid()); edit them for another setup.
+-- It reads policies only: not grants or column privileges, not views (which run with their
+-- owner's rights unless security_invoker is on), not functions, not other schemas. It looks
+-- for a plain "true", and it does not tell a RESTRICTIVE policy from a permissive one.
 with t as (
   select c.oid, c.relname as tbl, c.relrowsecurity as rls_on
   from pg_class c
