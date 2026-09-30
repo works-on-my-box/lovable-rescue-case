@@ -3,8 +3,7 @@
 -- lives in one table; every insert and update has a WITH CHECK, so ownership columns cannot
 -- be spoofed.
 
--- The generated policies go first. Permissive policies are OR-ed together, so a single
--- leftover using (true) would keep the table open whatever is added next to it.
+-- Permissive policies are OR-ed together: one leftover using (true) keeps the table open.
 drop policy "Enable read access for all users"           on public.profiles;
 drop policy "Users can update own profile"               on public.profiles;
 drop policy "Enable read access for all users"           on public.projects;
@@ -18,16 +17,15 @@ drop policy "Team can update tasks"                      on public.tasks;
 drop policy "Team can delete own tasks"                  on public.tasks;
 drop policy "Enable all for authenticated users"         on public.comments;
 
--- Grants come before policies. Nothing in this app is for signed-out visitors, so anon loses
--- its table privileges as well: a policy written later without a TO clause cannot reopen that.
+-- Nothing in this app is for signed-out visitors, so anon loses its table grants as well.
+-- A policy written later without a TO clause cannot reopen that.
 revoke all on all tables in schema public from anon;
 
 -- Which projects is the current user a member of?
--- SECURITY DEFINER: the function reads project_members as its owner, and the table's owner
--- is not subject to the table's policies. Without that, a project_members policy that asks
--- "am I a member?" by reading project_members recurses (error 42P17, see 05a-recursion.sql).
--- It lives in a schema the API does not expose, so it cannot be called as /rpc/my_project_ids.
--- search_path pinned and names schema-qualified, so a caller cannot swap in their own objects.
+-- SECURITY DEFINER: the function runs as its owner. Here that is also the owner of the table,
+-- and a table owner is not subject to its policies: no recursion (see 05a-recursion.sql).
+-- The schema is not exposed by the API, so nobody can call it as /rpc/my_project_ids.
+-- search_path is pinned and the names are schema-qualified, so a caller cannot swap objects in.
 create schema if not exists private;
 grant usage on schema private to authenticated;
 create or replace function private.my_project_ids() returns setof uuid
@@ -51,9 +49,10 @@ create policy "profiles: update own" on public.profiles
 revoke update on public.profiles from authenticated;
 grant  update (full_name) on public.profiles to authenticated;
 
--- projects: the owner and the members read. The owner clause matters on day one: a new project
--- has no membership rows yet, and its owner has to see it to add the first one. Anyone signed in
--- may create a project they own; only the owner edits, and cannot hand it to somebody else.
+-- projects: the owner and the members read. A new project has no membership rows yet,
+-- and its owner has to see it to add the first one.
+-- Anyone signed in may create a project they own; only the owner edits it, and cannot hand
+-- it to somebody else.
 create policy "projects: owner and members read" on public.projects
   for select to authenticated
   using (owner_id = (select auth.uid()) or id in (select private.my_project_ids()));
