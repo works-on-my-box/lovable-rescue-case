@@ -16,7 +16,7 @@ no browser.
 | `05a-recursion.sql` | the obvious membership policy and the `infinite recursion detected in policy` error it gets; rolled back |
 | `05-fix.sql` | the same tables with policies that name the role, decide by membership and carry `WITH CHECK`; the membership lookup is a `SECURITY DEFINER` function in a schema the API does not expose; ownership columns (`created_by`, `project_id`, `is_admin`) are closed with column privileges; one transaction |
 | `05b-leftovers.sql` | the fix applied on top of what the probes in `04` wrote: those rows are still there, and the query that lists them for review |
-| `06-test-after-fix.sql` | the same probes on a fresh seed, each write tried with and without `RETURNING`, plus a member trying to take over a teammate's task; the errors are the point |
+| `06-test-after-fix.sql` | the same probes on a fresh seed, each write tried with and without `RETURNING`, plus a member trying to take over a teammate's task, and the table privileges the API roles are left with; the errors are the point |
 | `07-index.sql` | 200,000 tasks: three shapes of the membership policy, the JIT trap, `LIKE` and leakproof ordering, `auth.uid()` bare vs wrapped, the membership index, one task's comments |
 | `08-indexes.sql` | the three indexes the fixed policies need; the migration to ship with `05-fix.sql` |
 
@@ -48,9 +48,12 @@ nothing, and works on any PostgreSQL from 9.5 up.
   people they share a project with, so a member picker has nobody new to offer. A project
   owner can add any user id without that user's consent.
 - The helper works because it runs as the owner of `project_members`, and a table owner is
-  not subject to the table's policies. With `FORCE ROW LEVEL SECURITY` on the table, or a
-  function owner that is neither the table owner nor `BYPASSRLS`, it returns nothing.
+  not subject to the table's policies. It returns nothing in two cases: the table has
+  `FORCE ROW LEVEL SECURITY` and its owner is neither a superuser nor `BYPASSRLS`, or the
+  function belongs to a role that is neither the table owner, a superuser nor `BYPASSRLS`.
 - The revoke and the grants name the five tables. A table or a view created later gets the
   default grants again (until Supabase stops issuing them for the project), and a view runs
   with its owner's rights unless it is created with `security_invoker`.
-- `03-audit.sql` reads policies only: see the comment at the top of the file.
+- `03-audit.sql` reads policies only. It does not look at grants or column privileges, at
+  views, at functions or at schemas other than `public`; it looks for a plain `true` and
+  does not tell a `RESTRICTIVE` policy from a permissive one.

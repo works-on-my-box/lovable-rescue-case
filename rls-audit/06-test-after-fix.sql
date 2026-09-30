@@ -91,6 +91,8 @@ select name from public.projects order by 1;
 \echo '--- the rest of what a member who is not the owner or the author may not do, one probe each'
 insert into public.tasks (project_id, title, created_by)
 values ('00000000-0000-0000-0000-0000000000a1', 'Filed under her name', '00000000-0000-0000-0000-000000000001');
+insert into public.comments (task_id, author_id, body)
+values (:'alpha_task', '00000000-0000-0000-0000-000000000001', 'Signed as alice');
 delete from public.tasks where title = 'Rotate the leaked service key';
 delete from public.comments where body = 'First comment on Rotate the leaked service key';
 update public.projects set name = 'Alpha, renamed' where name = 'Alpha';
@@ -107,7 +109,9 @@ select set_config('request.jwt.claims',
 select 'carol reads ' || (select count(*) from public.projects) || ' project(s), '
        || (select count(*) from public.project_members) || ' membership row(s), '
        || (select count(*) from public.comments) || ' comment(s)' as reads;
-\echo '--- a project in somebody else''s name, and her own project handed to alice'
+\echo '--- a task of her own in Alpha, a project in somebody else''s name, and her own project handed to alice'
+insert into public.tasks (project_id, title, created_by)
+values ('00000000-0000-0000-0000-0000000000a1', 'Planted by carol', '00000000-0000-0000-0000-000000000003');
 insert into public.projects (name, owner_id) values ('Planted', '00000000-0000-0000-0000-000000000001');
 update public.projects set owner_id = '00000000-0000-0000-0000-000000000001' where name = 'Gamma';
 reset role;
@@ -123,6 +127,19 @@ where project_id = '00000000-0000-0000-0000-0000000000a1'
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub": "00000000-0000-0000-0000-000000000002", "role": "authenticated"}', true);
-\echo '--- a bare DELETE: his old task in Alpha stays'
+\echo '--- a bare DELETE: his old task in Alpha stays, and so does his old comment'
 delete from public.tasks;
+delete from public.comments;
 rollback;
+
+-- Not a probe: what the two API roles still hold on the tables. A table left out of the
+-- revoke in 05-fix.sql shows up here even when no probe above happens to touch it.
+\echo
+\echo '=== table privileges left to the API roles (as the table owner)'
+select 'anon holds ' || count(*) filter (where grantee = 'anon')
+       || ' table privilege(s); authenticated holds '
+       || count(*) filter (where grantee = 'authenticated'
+                           and privilege_type not in ('SELECT', 'INSERT', 'UPDATE', 'DELETE'))
+       || ' beyond select, insert, update, delete' as grants
+from information_schema.role_table_grants
+where table_schema = 'public' and grantee in ('anon', 'authenticated');

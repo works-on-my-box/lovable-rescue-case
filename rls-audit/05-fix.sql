@@ -24,7 +24,7 @@ drop policy "Enable all for authenticated users"         on public.comments;
 -- written later without a TO clause cannot reopen these five tables. authenticated keeps
 -- the four row operations and nothing else: TRUNCATE is not subject to row security.
 -- The tables are named one by one. ON ALL TABLES IN SCHEMA would hand every other table in
--- the schema to authenticated as well, including one that has no policies yet.
+-- the schema to authenticated as well, including one where row security is off.
 -- A table created later gets the default grants again; revoke there too.
 revoke all on public.profiles, public.projects, public.project_members, public.tasks, public.comments
   from anon, authenticated;
