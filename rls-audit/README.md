@@ -13,7 +13,8 @@ no browser.
 | `02-seed.sql` | three users, two projects |
 | `03-audit.sql` | one query over `pg_class` and `pg_policy`: every table, every policy, a `findings` column |
 | `04-test-as-user.sql` | `set role` + `request.jwt.claims`, the way PostgREST hits the database: what an anonymous key and a signed-in user can read and write |
-| `05-fix.sql` | the same tables with policies that name the role, decide by membership and carry `WITH CHECK` |
+| `05a-recursion.sql` | the obvious membership policy and the `infinite recursion detected in policy` error it gets; rolled back |
+| `05-fix.sql` | the same tables with policies that name the role, decide by membership and carry `WITH CHECK`; the membership lookup is a `SECURITY DEFINER` function in a schema the API does not expose |
 | `06-test-after-fix.sql` | the same probes; the errors are the point |
 | `07-index.sql` | 200,000 tasks: three shapes of the membership policy, the JIT trap, `LIKE` and leakproof ordering, `auth.uid()` bare vs wrapped, the membership index |
 | `08-indexes.sql` | the two indexes the fixed policies need; the migration to ship with `05-fix.sql` |

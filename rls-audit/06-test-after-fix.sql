@@ -48,4 +48,12 @@ select p.name as project, t.title, t.done
 from public.tasks t join public.projects p on p.id = t.project_id
 order by p.name, t.title;
 select full_name from public.profiles order by 1;
+
+\echo '--- the app still works: bob starts a project of his own and adds himself to it'
+insert into public.projects (id, name, owner_id)
+values ('00000000-0000-0000-0000-0000000000b2', 'Beta', '00000000-0000-0000-0000-000000000002')
+returning name;
+insert into public.project_members (project_id, user_id, role)
+values ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-000000000002', 'owner');
+select name from public.projects order by 1;
 reset role;
