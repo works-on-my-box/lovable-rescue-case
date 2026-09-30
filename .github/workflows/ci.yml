@@ -70,10 +70,11 @@ jobs:
           grep -c 'reads every row' run.out | grep -qx 5
           # the obvious members policy recurses, which is why the fix goes through a function
           grep -q 'infinite recursion detected in policy for relation "project_members"' run.out
-          # after the fix: the same update touches nothing, the writes are refused, the audit is clean
+          # after the fix: anon has no table privileges, the same update touches nothing,
+          # the writes are refused, the audit is clean
           grep -q '^UPDATE 0' run.out
           grep -q 'new row violates row-level security policy for table "project_members"' run.out
-          grep -q 'permission denied for table profiles' run.out
+          grep -c 'permission denied for table profiles' run.out | grep -qx 2
           grep -c 'reads every row' run.out | grep -qx 5
           # and the app still works: a signed-in user creates a project and sees it
           grep -qx ' Beta' run.out

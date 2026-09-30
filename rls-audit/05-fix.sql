@@ -18,6 +18,10 @@ drop policy "Team can update tasks"                      on public.tasks;
 drop policy "Team can delete own tasks"                  on public.tasks;
 drop policy "Enable all for authenticated users"         on public.comments;
 
+-- Grants come before policies. Nothing in this app is for signed-out visitors, so anon loses
+-- its table privileges as well: a policy written later without a TO clause cannot reopen that.
+revoke all on all tables in schema public from anon;
+
 -- Which projects is the current user a member of?
 -- SECURITY DEFINER: the function reads project_members as its owner, and the table's owner
 -- is not subject to the table's policies. Without that, a project_members policy that asks

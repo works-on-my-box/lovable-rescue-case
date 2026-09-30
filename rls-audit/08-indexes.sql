@@ -1,5 +1,6 @@
 -- The two indexes the fixed policies need. 07-index.sql measures the app's two main queries
 -- before and after these; this file is the migration to ship together with 05-fix.sql.
+-- On a busy table use CREATE INDEX CONCURRENTLY for both (not inside a transaction block).
 
 -- one page of a project's tasks: index scan on the project, newest first, no filtering
 create index if not exists tasks_project_id_created_at_idx
